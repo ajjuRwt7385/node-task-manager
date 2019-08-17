@@ -1,5 +1,5 @@
 const express = require("express");
-const authMiddleware = require('../middleware/auth');
+const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.post("/tasks", authMiddleware, async (req, res) => {
   /**
    * ------------------------------------------------------------------------------------
    * if want to grab the full user details whose `_id` is stored in `userId` field of
-   * the task (though irrelevant here as we already have `req.user`) 
+   * the task (though irrelevant here as we already have `req.user`)
    * REQUIRES setting user `ref` in the task schema model
    */
   // await task.populate('userId').execPopulate();
@@ -28,10 +28,35 @@ router.post("/tasks", authMiddleware, async (req, res) => {
 // READ
 // all tasks---
 router.get("/tasks", authMiddleware, async (req, res) => {
+  const completed = req.query.completed === "true";
+  const match = {};
+  if (req.query.completed) {
+    match.completed = completed;
+  }
+
+  const sort = {};
+  if (req.query.sortBy) {
+    const parts = req.query.sortBy.split(':');
+    sort[parts[0]] = parts[1] === 'desc' ? -1 : 1
+  }
   try {
     // const tasks = await Task.find({});
-    const tasks = await Task.find({ userId: req.user._id })
-    res.send(tasks);
+    // const tasks = await Task.find({ userId: req.user._id })
+    // res.send(tasks);
+
+    // await req.user.populate('tasks').execPopulate();
+    await req.user
+      .populate({
+        path: "tasks",
+        match,
+        options: {
+          limit: parseInt(req.query.limit),
+          skip: parseInt(req.query.skip),
+          sort
+        }
+      })
+      .execPopulate();
+    res.send(req.user.tasks);
   } catch (err) {
     res.status(500).send();
   }
@@ -42,7 +67,7 @@ router.get("/tasks/:id", authMiddleware, async (req, res) => {
   const _id = req.params.id;
   try {
     // const task = await Task.findById(_id);
-    const task = await Task.findOne({ _id, userId: req.user._id })
+    const task = await Task.findOne({ _id, userId: req.user._id });
 
     if (!task) {
       return res.status(404).send();
@@ -73,13 +98,13 @@ router.patch("/tasks/:id", authMiddleware, async (req, res) => {
     if (!task) {
       return res.status(404).send();
     }
-    updates.forEach(update => task[update] = req.body[update]);
+    updates.forEach(update => (task[update] = req.body[update]));
     await task.save();
     // const task = await Task.findByIdAndUpdate(_id, req.body, {
     //   new: true,
     //   runValidators: true
     // });
-    
+
     res.send(task);
   } catch (err) {
     res.status(500).send(err);
@@ -87,10 +112,13 @@ router.patch("/tasks/:id", authMiddleware, async (req, res) => {
 });
 
 // DELETE task---
-router.delete("/tasks/:id", authMiddleware, async (req, res) => {  
+router.delete("/tasks/:id", authMiddleware, async (req, res) => {
   try {
     // const task = await Task.findByIdAndDelete(req.params.id);
-    const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user._id })
+    const task = await Task.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user._id
+    });
 
     if (!task) {
       return res.status(404).send();

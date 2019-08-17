@@ -7,7 +7,7 @@ const taskRouter = require("./routers/task");
 require("./db/mongoose");
 
 const app = express();
-const PORT = process.env.PORT || 7385;
+const PORT = process.env.PORT;
 
 // Middleware-- (A function with logic that decides something b/w req and res, like user authentication)
 // app.use((req, res, next) => {

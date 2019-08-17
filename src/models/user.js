@@ -4,7 +4,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const Task = require("./task");
-const { tokenSignature } = require("../config/constants");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -39,7 +38,7 @@ const userSchema = new mongoose.Schema({
     default: 0,
     validate(value) {
       if (value < 0) {
-        throw new Error("Please enter a valid date");
+        throw new Error("Please enter a valid age");
       }
     }
   },
@@ -50,7 +49,12 @@ const userSchema = new mongoose.Schema({
         required: true
       }
     }
-  ]
+  ],
+  avatar: {
+    type: Buffer
+  }
+}, {
+  timestamps: true
 });
 
 userSchema.virtual("tasks", {
@@ -73,13 +77,14 @@ userSchema.methods.toJSON = function() {
   // remove unwanted data before sending---
   delete userObj.password;
   delete userObj.tokens;
+  delete userObj.avatar;
   // send the updated data obj---
   return userObj;
 };
 
 userSchema.methods.generateAuthToken = async function() {
   const user = this;
-  const token = await jwt.sign({ _id: user._id.toString() }, tokenSignature);
+  const token = await jwt.sign({ _id: user._id.toString() }, process.env.JWT_SECRET);
   user.tokens = [...user.tokens, { token }];
 
   await user.save();
@@ -130,6 +135,6 @@ userSchema.pre("remove", async function(next) {
   next();
 });
 
-const User = mongoose.model("User", userSchema);
+const User =  mongoose.model("User", userSchema);
 
 module.exports = User;
